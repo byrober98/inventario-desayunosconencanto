@@ -13,7 +13,6 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
         body { background-color: var(--bg-light); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
 
-        /* PANTALLA DE LOGIN AUTOMÁTICA */
         #auth-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); z-index: 3000;
@@ -75,7 +74,6 @@
 
     <div id="toast"><i class="fa-solid fa-bell" style="color:#60a5fa"></i> <span id="toast-msg">Aviso</span></div>
 
-    <!-- PANTALLA DE LOGIN AUTOMÁTICA SEGÚN DISPOSITIVO -->
     <div id="auth-screen">
         <div class="auth-box">
             <h2 id="login-title"><i class="fa-solid fa-lock"></i> Acceso</h2>
@@ -87,17 +85,14 @@
         </div>
     </div>
 
-    <!-- VISTA GERENTE (MÓVIL) -->
+    <!-- VISTA GERENTE -->
     <div id="gerente-view" class="hidden">
         <div class="gerente-header">
             <div>
                 <h2><i class="fa-solid fa-mobile-screen-button" style="color:var(--primary)"></i> Gerente</h2>
                 <p style="color:var(--text-muted); font-size:0.85rem;">Control de Obrador</p>
             </div>
-            <div style="display:flex; gap:6px;">
-                <button class="btn-outline" onclick="sincronizarCloud()" style="padding: 6px 10px; font-size: 0.75rem;"><i class="fa-solid fa-sync"></i></button>
-                <button class="btn-outline" onclick="location.reload()" style="padding: 6px 10px; font-size: 0.75rem; color:var(--danger); border-color:var(--danger);"><i class="fa-solid fa-right-from-bracket"></i></button>
-            </div>
+            <button class="btn-outline" onclick="location.reload()" style="padding: 6px 10px; font-size: 0.75rem; color:var(--danger); border-color:var(--danger);"><i class="fa-solid fa-right-from-bracket"></i></button>
         </div>
 
         <div class="gerente-content" id="g-tab-inicio">
@@ -123,7 +118,7 @@
         </nav>
     </div>
 
-    <!-- VISTA JEFE (PC) -->
+    <!-- VISTA JEFE -->
     <div id="jefe-view" class="hidden">
         <aside class="sidebar">
             <h2><i class="fa-solid fa-chart-pie"></i> Obrador Jefe</h2>
@@ -138,10 +133,7 @@
 
         <main class="main">
             <div id="j-sec-dashboard" class="j-section">
-                <div style="margin-bottom: 24px; display:flex; justify-content:space-between; align-items:center;">
-                    <div><h1>Panel de Control</h1><p style="color:var(--text-muted);">Supervisa el obrador.</p></div>
-                    <button class="btn-primary" onclick="sincronizarCloud()"><i class="fa-solid fa-sync"></i> Sincronizar</button>
-                </div>
+                <div style="margin-bottom: 24px;"><h1>Panel de Control</h1><p style="color:var(--text-muted);">Supervisa el obrador.</p></div>
                 <div class="dash-grid-pc" id="jefe-stats"></div>
                 <div class="section-box">
                     <h3><i class="fa-solid fa-bell" style="color:var(--danger)"></i> Avisos Recientes del Gerente</h3>
@@ -169,7 +161,7 @@
         </main>
     </div>
 
-    <!-- MODAL PEDIR (Gerente) -->
+    <!-- MODALES -->
     <div class="modal-overlay" id="modal-falta">
         <div class="modal">
             <h3 id="m-titulo">Pedir Producto</h3>
@@ -183,7 +175,6 @@
         </div>
     </div>
 
-    <!-- MODAL NUEVO (Jefe) -->
     <div class="modal-overlay" id="modal-nuevo">
         <div class="modal">
             <h3>Nuevo Producto</h3>
@@ -198,15 +189,11 @@
         </div>
     </div>
 
+    <!-- Conexión con el archivo config.js externo -->
+    <script src="config.js"></script>
     <script>
-        const BIN_ID = '6628b05facd3cb34a835b12a';
-        const API_KEY = '$2a$10$7h1Jk3L6...';
-
-        const PASS_GERENTE = 'Orten292';
-        const PASS_JEFE = 'Silvia192';
-
+        let db = obtenerBD();
         let tipoDispositivo = '';
-        let db = { inventario: [], faltas: [], historial: [] };
 
         function showToast(msg) {
             const t = document.getElementById('toast');
@@ -215,73 +202,29 @@
             setTimeout(() => t.style.display = 'none', 3000);
         }
 
-        async function sincronizarCloud() {
-            try {
-                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { 'X-Master-Key': API_KEY } });
-                if(res.ok) {
-                    const data = await res.json();
-                    if(data && data.record) {
-                        db = data.record;
-                        localStorage.setItem('obrador_backup', JSON.stringify(db));
-                        renderActual();
-                        showToast("☁️ Sincronizado");
-                    }
-                }
-            } catch(e) {
-                const local = localStorage.getItem('obrador_backup');
-                if(local) db = JSON.parse(local);
-                renderActual();
-            }
-        }
-
-        async function guardarCloud() {
-            renderActual();
-            localStorage.setItem('obrador_backup', JSON.stringify(db));
-            try {
-                await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
-                    body: JSON.stringify(db)
-                });
-                showToast("💾 Cambios guardados");
-            } catch(e) { showToast("⚠️ Guardado localmente"); }
-        }
-
-        // Backup automático en local cada 5 minutos
-        setInterval(() => {
-            localStorage.setItem('obrador_backup', JSON.stringify(db));
-            showToast("🔄 Backup automático realizado");
-        }, 300000);
-
-        // Auto-refresco de red cada 6 segundos
-        setInterval(sincronizarCloud, 6000);
-
-        // DETECCIÓN AUTOMÁTICA DE DISPOSITIVO
         function detectarDispositivo() {
             const esMovil = /Mobi|Android|iPhone/i.test(navigator.userAgent);
             if(esMovil) {
                 tipoDispositivo = 'gerente';
                 document.getElementById('login-title').innerHTML = `<i class="fa-solid fa-mobile-screen-button"></i> Acceso Gerente`;
-                document.getElementById('login-subtitle').innerText = `Introduce la contraseña de Gerente`;
             } else {
                 tipoDispositivo = 'jefe';
                 document.getElementById('login-title').innerHTML = `<i class="fa-solid fa-desktop"></i> Acceso Jefe`;
-                document.getElementById('login-subtitle').innerText = `Introduce la contraseña de Jefe`;
             }
         }
 
         function verificarPass() {
             const pass = document.getElementById('input-pass').value;
-            if(tipoDispositivo === 'gerente' && pass === PASS_GERENTE) {
+            if(tipoDispositivo === 'gerente' && pass === OBRADOR_CONFIG.PASS_GERENTE) {
                 document.getElementById('auth-screen').style.display = 'none';
                 document.getElementById('gerente-view').classList.remove('hidden');
-                sincronizarCloud();
                 goToGTab('inicio');
-            } else if(tipoDispositivo === 'jefe' && pass === PASS_JEFE) {
+                showToast("🔓 Sesión Iniciada");
+            } else if(tipoDispositivo === 'jefe' && pass === OBRADOR_CONFIG.PASS_JEFE) {
                 document.getElementById('auth-screen').style.display = 'none';
                 document.getElementById('jefe-view').classList.remove('hidden');
-                sincronizarCloud();
                 switchJTab('dashboard');
+                showToast("🔓 Sesión Iniciada");
             } else {
                 alert("Contraseña incorrecta.");
             }
@@ -289,6 +232,7 @@
 
         // --- GERENTE ---
         function goToGTab(tab) {
+            db = obtenerBD();
             document.querySelectorAll('.gerente-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             document.getElementById('g-tab-' + tab).classList.remove('hidden');
@@ -297,22 +241,24 @@
         }
 
         function renderActual() {
-            const pend = db.faltas.filter(f => f.estado === 'Pendiente').length;
-            const pros = db.faltas.filter(f => f.estado === 'Pedido realizado').length;
-            const ok = db.inventario.filter(i => i.stock > 5).length;
+            db = obtenerBD();
+            const pend = db.faltas ? db.faltas.filter(f => f.estado === 'Pendiente').length : 0;
+            const pros = db.faltas ? db.faltas.filter(f => f.estado === 'Pedido realizado').length : 0;
+            const ok = db.inventario ? db.inventario.filter(i => i.stock > 5).length : 0;
 
             document.getElementById('gerente-stats').innerHTML = `
                 <div class="stat-box" style="color:var(--danger)"><span>Faltas</span><span class="num">${pend}</span></div>
                 <div class="stat-box" style="color:var(--warning)"><span>Pedidos</span><span class="num">${pros}</span></div>
                 <div class="stat-box" style="color:var(--success)"><span>OK</span><span class="num">${ok}</span></div>
             `;
-            document.getElementById('gerente-resumen').innerHTML = db.faltas.length === 0 ? '<p style="color:var(--text-muted); text-align:center; padding:20px;">Todo en orden.</p>' :
+            
+            document.getElementById('gerente-resumen').innerHTML = (!db.faltas || db.faltas.length === 0) ? '<p style="color:var(--text-muted); text-align:center; padding:20px;">Todo en orden.</p>' :
                 db.faltas.slice(0,3).map(f => `<div class="card"><h4>${f.nombre}</h4><p style="font-size:0.9rem; color:var(--text-muted)">Solicitado: ${f.cantidadSolicitada} un.</p><div style="margin-top:6px;">${f.estado==='Pendiente'?'<span class="badge badge-orange">Pendiente</span>':'<span class="badge badge-blue">En camino</span>'}</div></div>`).join('');
 
-            document.getElementById('gerente-lista-inventario').innerHTML = db.inventario.length === 0 ? '<p style="color:var(--text-muted); text-align:center;">Sin productos.</p>' :
+            document.getElementById('gerente-lista-inventario').innerHTML = (!db.inventario || db.inventario.length === 0) ? '<p style="color:var(--text-muted); text-align:center;">Sin productos.</p>' :
                 db.inventario.map(i => `<div class="card"><h4>${i.nombre}</h4><div style="font-size:1.2rem; font-weight:bold; margin:4px 0;">${i.stock} ${i.unidad}</div><button class="btn-danger" style="width:100%; margin-top:8px;" onclick="abrirModal(${i.id})"><i class="fa-solid fa-plus"></i> PEDIR FALTA</button></div>`).join('');
 
-            document.getElementById('gerente-lista-pedidos').innerHTML = db.faltas.length === 0 ? '<p style="color:var(--text-muted); text-align:center;">No hay pedidos.</p>' :
+            document.getElementById('gerente-lista-pedidos').innerHTML = (!db.faltas || db.faltas.length === 0) ? '<p style="color:var(--text-muted); text-align:center;">No hay pedidos.</p>' :
                 db.faltas.map(f => `<div class="card"><h4>${f.nombre}</h4><p>Cantidad: ${f.cantidadSolicitada} un.</p><div style="margin:6px 0;">${f.estado==='Pedido realizado'?'<span class="badge badge-blue">Pedido Realizado</span>':'<span class="badge badge-orange">Pendiente</span>'}</div>${f.estado==='Pedido realizado'?`<button class="btn-success" style="width:100%; margin-top:8px;" onclick="marcarRecibido(${f.id})">MARCAR RECIBIDO</button>`:''}</div>`).join('');
 
             if(document.getElementById('jefe-view').classList.contains('hidden') === false) {
@@ -330,24 +276,32 @@
         }
 
         function enviarPedido() {
+            db = obtenerBD();
             const item = db.inventario.find(i => i.id === selId);
             const cant = parseInt(document.getElementById('m-cant').value) || 20;
             const com = document.getElementById('m-comentario').value || 'Sin comentarios';
+            if(!db.faltas) db.faltas = [];
             db.faltas.unshift({ id: Date.now(), productoId: item.id, nombre: item.nombre, stockActual: item.stock, cantidadSolicitada: cant, comentario: com, estado: 'Pendiente', fecha: new Date().toLocaleDateString() });
+            guardarBD(db);
             document.getElementById('modal-falta').style.display = 'none';
-            guardarCloud();
+            showToast("Pedido enviado.");
+            renderActual();
         }
 
         function marcarRecibido(id) {
+            db = obtenerBD();
             const f = db.faltas.find(x => x.id === id);
             f.estado = 'Recibido';
             const prod = db.inventario.find(p => p.id === f.productoId);
             if(prod) prod.stock += parseInt(f.cantidadSolicitada);
-            guardarCloud();
+            guardarBD(db);
+            showToast("Recepción confirmada.");
+            renderActual();
         }
 
         // --- JEFE ---
         function switchJTab(tab) {
+            db = obtenerBD();
             document.querySelectorAll('.j-section').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.sidebar .menu-item').forEach(el => el.classList.remove('active'));
             document.getElementById('j-sec-' + tab).classList.remove('hidden');
@@ -356,9 +310,10 @@
         }
 
         function renderJefe() {
-            const pend = db.faltas.filter(f => f.estado === 'Pendiente').length;
-            const pros = db.faltas.filter(f => f.estado === 'Pedido realizado').length;
-            const rec = db.faltas.filter(f => f.estado === 'Recibido').length;
+            db = obtenerBD();
+            const pend = db.faltas ? db.faltas.filter(f => f.estado === 'Pendiente').length : 0;
+            const pros = db.faltas ? db.faltas.filter(f => f.estado === 'Pedido realizado').length : 0;
+            const rec = db.faltas ? db.faltas.filter(f => f.estado === 'Recibido').length : 0;
 
             document.getElementById('jefe-stats').innerHTML = `
                 <div class="dash-card"><div><h3>Faltas Pendientes</h3><div class="value" style="color:var(--danger)">${pend}</div></div><i class="fa-solid fa-triangle-exclamation" style="font-size:2rem; color:var(--danger)"></i></div>
@@ -367,11 +322,11 @@
             `;
 
             const avisos = document.getElementById('jefe-avisos');
-            const pendList = db.faltas.filter(f => f.estado === 'Pendiente');
+            const pendList = db.faltas ? db.faltas.filter(f => f.estado === 'Pendiente') : [];
             avisos.innerHTML = pendList.length === 0 ? '<p style="color:var(--text-muted);">No hay solicitudes pendientes.</p>' :
                 pendList.map(f => `<div style="display:flex; justify-content:space-between; align-items:center; padding:14px; border:1px solid var(--border); border-radius:8px; margin-bottom:10px; background:#fff;"><div><h4>${f.nombre} (${f.cantidadSolicitada} un.)</h4><p style="color:var(--text-muted); font-size:0.9rem;">Nota: "${f.comentario}"</p></div><button class="btn-primary" onclick="marcarPedidoRealizado(${f.id})" style="width:auto;">Marcar Pedido Realizado</button></div>`).join('');
 
-            document.getElementById('jefe-tabla-inv').innerHTML = db.inventario.length === 0 ? '<p style="color:var(--text-muted); text-align:center;">Sin productos.</p>' :
+            document.getElementById('jefe-tabla-inv').innerHTML = (!db.inventario || db.inventario.length === 0) ? '<p style="color:var(--text-muted); text-align:center;">Sin productos.</p>' :
                 `<table><thead><tr><th>Categoría</th><th>Producto</th><th>Stock</th><th>Estado</th></tr></thead><tbody>` +
                 db.inventario.map(i => `<tr><td><strong>${i.categoria}</strong></td><td>${i.nombre}</td><td>${i.stock} ${i.unidad}</td><td><span class="badge ${i.stock<=5?'badge-orange':'badge-green'}">${i.stock<=5?'Bajo':'Correcto'}</span></td></tr>`).join('') + `</tbody></table>`;
 
@@ -381,26 +336,32 @@
         }
 
         function marcarPedidoRealizado(id) {
-            const f = db.faltas.filter(x => x.id === id)[0];
+            db = obtenerBD();
+            const f = db.faltas.find(x => x.id === id);
             if(f) {
                 f.estado = 'Pedido realizado';
-                guardarCloud();
+                guardarBD(db);
+                showToast("Pedido actualizado.");
+                renderJefe();
             }
         }
 
         function abrirModalNuevo() { document.getElementById('modal-nuevo').style.display = 'flex'; }
         function guardarNuevoProducto() {
+            db = obtenerBD();
             const cat = document.getElementById('nuevo-cat').value || 'GENERAL';
             const nom = document.getElementById('nuevo-nom').value;
             const stk = parseInt(document.getElementById('nuevo-stock').value) || 0;
             const und = document.getElementById('nuevo-unidad').value || 'unidades';
             if(!nom) { alert("Escribe un nombre."); return; }
+            if(!db.inventario) db.inventario = [];
             db.inventario.push({ id: Date.now(), categoria: cat.toUpperCase(), nombre: nom, stock: stk, unidad: und });
+            guardarBD(db);
             document.getElementById('modal-nuevo').style.display = 'none';
-            guardarCloud();
+            showToast("Producto añadido.");
+            renderJefe();
         }
 
-        // Inicializar al cargar la página
         detectarDispositivo();
     </script>
 </body>
