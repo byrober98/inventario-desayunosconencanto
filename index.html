@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Obrador - Sistema Centralizado</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1e3a8a; --success: #059669; --danger: #dc2626; --warning: #d97706;
+            --bg-light: #f1f5f9; --text-main: #0f172a; --text-muted: #475569; --border: #cbd5e1; --radius: 12px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
+        body { background-color: var(--bg-light); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+
+        /* PANTALLA DE LOGIN JEFE */
+        #login-screen {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); z-index: 3000;
+            justify-content: center; align-items: center; padding: 20px;
+        }
+        .login-box { background: white; padding: 35px; border-radius: var(--radius); width: 100%; max-width: 400px; box-shadow: 0 20px 25px rgba(0,0,0,0.3); text-align: center; }
+        .login-box h2 { margin-bottom: 20px; color: var(--primary); }
+
+        /* ESTILOS GENERALES */
+        .hidden { display: none !important; }
+        button { cursor: pointer; border: none; border-radius: var(--radius); font-weight: 600; padding: 12px 18px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-primary { background: var(--primary); color: white; width: 100%; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-outline { background: transparent; border: 2px solid var(--border); color: var(--text-main); }
+        .badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
+        .badge-green { background: #d1fae5; color: #065f46; }
+        .badge-orange { background: #fef3c7; color: #92400e; }
+        .badge-blue { background: #dbeafe; color: #1e40af; }
+
+        #toast { position: fixed; top: 20px; right: 20px; background: #0f172a; color: white; padding: 12px 20px; border-radius: 8px; z-index: 9999; display: none; box-shadow: 0 10px 15px rgba(0,0,0,0.2); }
+
+        /* VISTA GERENTE (MÓVIL) */
+        #gerente-view { max-width: 500px; margin: 0 auto; width: 100%; flex: 1; display: flex; flex-direction: column; position: relative; background: white; min-height: 100vh; }
+        .gerente-header { padding: 20px; background: white; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .gerente-content { padding: 20px; flex: 1; overflow-y: auto; padding-bottom: 90px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+        .stat-box { background: #f8fafc; padding: 12px 6px; border-radius: var(--radius); text-align: center; border: 1px solid var(--border); }
+        .stat-box .num { font-size: 1.2rem; font-weight: bold; display: block; margin-top: 2px; }
+        .card { background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .mobile-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 500px; background: white; border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 10px 0; z-index: 99; }
+        .nav-item { background: none; border: none; display: flex; flex-direction: column; align-items: center; color: var(--text-muted); font-size: 0.8rem; cursor: pointer; font-weight: 500; }
+        .nav-item.active { color: var(--primary); font-weight: 700; }
+
+        /* VISTA JEFE (PC) */
+        #jefe-view { display: flex; width: 100%; min-height: 100vh; background: var(--bg-light); }
+        .sidebar { width: 280px; background: white; border-right: 1px solid var(--border); padding: 24px; display: flex; flex-direction: column; }
+        .sidebar h2 { font-size: 1.3rem; margin-bottom: 25px; color: var(--primary); display: flex; gap: 10px; align-items: center; }
+        .menu { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+        .menu-item { background: transparent; border: none; text-align: left; padding: 14px; border-radius: var(--radius); color: var(--text-muted); font-weight: 600; display: flex; gap: 12px; align-items: center; cursor: pointer; }
+        .menu-item.active, .menu-item:hover { background: #eff6ff; color: var(--primary); }
+        .main { flex: 1; padding: 35px; overflow-y: auto; max-width: 1300px; }
+        .dash-grid-pc { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .dash-card { background: white; padding: 24px; border-radius: var(--radius); border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .dash-card .value { font-size: 2.2rem; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; text-align: left; background: white; border-radius: var(--radius); overflow: hidden; }
+        th, td { padding: 14px 18px; border-bottom: 1px solid var(--border); }
+        th { background: #f8fafc; color: var(--text-muted); }
+        .section-box { background: white; border-radius: var(--radius); border: 1px solid var(--border); padding: 28px; margin-bottom: 28px; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 2000; padding: 20px; }
+        .modal { background: white; padding: 28px; border-radius: var(--radius); width: 100%; max-width: 420px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 6px; color: var(--text-muted); }
+        .form-group input, .form-group textarea { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; }
+    </style>
+</head>
+<body>
+
+    <div id="toast"><i class="fa-solid fa-bell" style="color:#60a5fa"></i> <span id="toast-msg">Aviso</span></div>
+
+    <!-- PANTALLA DE LOGIN JEFE (PC) -->
+    <div id="login-screen">
+        <div class="login-box">
+            <h2><i class="fa-solid fa-lock"></i> Acceso Jefe</h2>
+            <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:20px;">Introduce la contraseña para acceder al panel de control.</p>
+            <div class="form-group">
+                <input type="password" id="jefe-pass" placeholder="Contraseña (ej: 1234)">
+            </div>
+            <button class="btn-primary" onclick="verificarPassword()">Entrar</button>
+        </div>
+    </div>
+
+    <!-- VISTA GERENTE (MÓVIL) -->
+    <div id="gerente-view" class="hidden">
+        <div class="gerente-header">
+            <div>
+                <h2><i class="fa-solid fa-mobile-screen-button" style="color:var(--primary)"></i> Gerente</h2>
+                <p style="color:var(--text-muted); font-size:0.85rem;">Control de Obrador</p>
+            </div>
+            <button class="btn-outline" onclick="sincronizarCloud()" style="padding: 6px 10px; font-size: 0.75rem;"><i class="fa-solid fa-sync"></i> Sync</button>
+        </div>
+
+        <div class="gerente-content" id="g-tab-inicio">
+            <div class="stats-grid" id="gerente-stats"></div>
+            <h3 style="margin-bottom: 12px; font-size: 1.1rem;"><i class="fa-solid fa-clock-rotate-left"></i> Estado de Pedidos</h3>
+            <div id="gerente-resumen"></div>
+        </div>
+
+        <div class="gerente-content hidden" id="g-tab-inventario">
+            <h3 style="margin-bottom: 12px;"><i class="fa-solid fa-boxes-stacked"></i> Inventario</h3>
+            <div id="gerente-lista-inventario"></div>
+        </div>
+
+        <div class="gerente-content hidden" id="g-tab-pedidos">
+            <h3 style="margin-bottom: 12px;"><i class="fa-solid fa-truck-fast"></i> Recepción</h3>
+            <div id="gerente-lista-pedidos"></div>
+        </div>
+
+        <nav class="mobile-nav">
+            <button class="nav-item active" onclick="goToGTab('inicio')" id="gn-inicio"><i class="fa-solid fa-house"></i> Inicio</button>
+            <button class="nav-item" onclick="goToGTab('inventario')" id="gn-inventario"><i class="fa-solid fa-box"></i> Inventario</button>
+            <button class="nav-item" onclick="goToGTab('pedidos')" id="gn-pedidos"><i class="fa-solid fa-truck"></i> Pedidos</button>
+        </nav>
+    </div>
+
+    <!-- VISTA JEFE (PC) -->
+    <div id="jefe-view" class="hidden">
+        <aside class="sidebar">
+            <h2><i class="fa-solid fa-chart-pie"></i> Obrador Jefe</h2>
+            <div class="menu">
+                <button class="menu-item active" onclick="switchJTab('dashboard')"><i class="fa-solid fa-house"></i> Dashboard</button>
+                <button class="menu-item" onclick="switchJTab('inventario')"><i class="fa-solid fa-boxes-stacked"></i> Inventario</button>
+                <button class="menu-item" onclick="switchJTab('faltas')"><i class="fa-solid fa-triangle-exclamation"></i> Solicitudes Faltas</button>
+                <button class="menu-item" onclick="switchJTab('pedidos')"><i class="fa-solid fa-truck-fast"></i> Pedidos Realizados</button>
+            </div>
+        </aside>
+
+        <main class="main">
+            <div id="j-sec-dashboard" class="j-section">
+                <div style="margin-bottom: 24px; display:flex; justify-content:space-between; align-items:center;">
+                    <div><h1>Panel de Control</h1><p style="color:var(--text-muted);">Supervisa el obrador.</p></div>
+                    <button class="btn-primary" onclick="sincronizarCloud()"><i class="fa-solid fa-sync"></i> Sincronizar</button>
+                </div>
+                <div class="dash-grid-pc" id="jefe-stats"></div>
+                <div class="section-box">
+                    <h3><i class="fa-solid fa-bell" style="color:var(--danger)"></i> Avisos Recientes del Gerente</h3>
+                    <div id="jefe-avisos"></div>
+                </div>
+            </div>
+
+            <div id="j-sec-inventario" class="j-section hidden">
+                <div style="margin-bottom: 24px; display:flex; justify-content:space-between; align-items:center;">
+                    <h1>Inventario General</h1>
+                    <button class="btn-success" onclick="abrirModalNuevo()"><i class="fa-solid fa-plus"></i> Añadir Producto</button>
+                </div>
+                <div class="section-box"><div id="jefe-tabla-inv"></div></div>
+            </div>
+
+            <div id="j-sec-faltas" class="j-section hidden">
+                <div style="margin-bottom: 24px;"><h1>Solicitudes de Faltas</h1></div>
+                <div class="section-box"><div id="jefe-tabla-faltas"></div></div>
+            </div>
+
+            <div id="j-sec-pedidos" class="j-section hidden">
+                <div style="margin-bottom: 24px;"><h1>Pedidos en Curso</h1></div>
+                <div class="section-box"><div id="jefe-tabla-pedidos"></div></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL PEDIR (Gerente) -->
+    <div class="modal-overlay" id="modal-falta">
+        <div class="modal">
+            <h3 id="m-titulo">Pedir Producto</h3>
+            <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:14px;">Stock actual: <strong id="m-stock">0</strong></p>
+            <div class="form-group"><label>Cantidad:</label><input type="number" id="m-cant" value="25"></div>
+            <div class="form-group"><label>Comentario:</label><textarea id="m-comentario" placeholder="Ej: Quedan pocos..."></textarea></div>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button class="btn-outline" onclick="document.getElementById('modal-falta').style.display='none'">Cancelar</button>
+                <button class="btn-primary" onclick="enviarPedido()">Enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL NUEVO (Jefe) -->
+    <div class="modal-overlay" id="modal-nuevo">
+        <div class="modal">
+            <h3>Nuevo Producto</h3>
+            <div class="form-group"><label>Categoría:</label><input type="text" id="nuevo-cat" placeholder="Ej: PACKAGING"></div>
+            <div class="form-group"><label>Nombre:</label><input type="text" id="nuevo-nom" placeholder="Ej: Cajas grandes"></div>
+            <div class="form-group"><label>Stock inicial:</label><input type="number" id="nuevo-stock" value="50"></div>
+            <div class="form-group"><label>Unidad:</label><input type="text" id="nuevo-unidad" value="unidades"></div>
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+                <button class="btn-outline" onclick="document.getElementById('modal-nuevo').style.display='none'">Cancelar</button>
+                <button class="btn-success" onclick="guardarNuevoProducto()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BIN_ID = '6628b05facd3cb34a835b12a';
+        const API_KEY = '$2a$10$7h1Jk3L6...';
+        const PASSWORD_JEFE = '1234'; // Puedes cambiar la contraseña aquí
+
+        let db = { inventario: [], faltas: [], historial: [] };
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 3000);
+        }
+
+        async function sincronizarCloud() {
+            try {
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { 'X-Master-Key': API_KEY } });
+                if(res.ok) {
+                    const data = await res.json();
+                    if(data && data.record) {
+                        db = data.record;
+                        localStorage.setItem('obrador_backup', JSON.stringify(db));
+                        renderActual();
+                        showToast("☁️ Sincronizado");
+                    }
+                }
+            } catch(e) {
+                // Respaldo local si falla internet momentáneamente
+                const local = localStorage.getItem('obrador_backup');
+                if(local) db = JSON.parse(local);
+                renderActual();
+            }
+        }
+
+        async function guardarCloud() {
+            renderActual();
+            localStorage.setItem('obrador_backup', JSON.stringify(db));
+            try {
+                await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
+                    body: JSON.stringify(db)
+                });
+                showToast("💾 Guardado en la nube");
+            } catch(e) { showToast("⚠️ Guardado local (sin red)"); }
+        }
+
+        // Backup automático cada 5 minutos
+        setInterval(guardarCloud, 300000);
+        // Auto-refresco de red cada 6 segundos
+        setInterval(sincronizarCloud, 6000);
+
+        // DETECCIÓN AUTOMÁTICA DE DISPOSITIVO (Móvil vs PC)
+        function detectarDispositivo() {
+            const esMovil = /Mobi|Android|iPhone/i.test(navigator.userAgent);
+            if(esMovil) {
+                document.getElementById('gerente-view').classList.remove('hidden');
+                sincronizarCloud();
+                goToGTab('inicio');
+            } else {
+                document.getElementById('login-screen').style.display = 'flex';
+            }
+        }
+
+        function verificarPassword() {
+            const pass = document.getElementById('jefe-pass').value;
+            if(pass === PASSWORD_JEFE) {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('jefe-view').classList.remove('hidden');
+                sincronizarCloud();
+                switchJTab('dashboard');
+            } else {
+                alert("Contraseña incorrecta.");
+            }
+        }
+
+        // --- GERENTE ---
+        function goToGTab(tab) {
+            document.querySelectorAll('.gerente-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('g-tab-' + tab).classList.remove('hidden');
+            if(document.getElementById('gn-' + tab)) document.getElementById('gn-' + tab).classList.add('active');
+            renderActual();
+        }
+
+        function renderActual() {
+            const pend = db.faltas.filter(f => f.estado === 'Pendiente').length;
+            const pros = db.faltas.filter(f => f.estado === 'Pedido realizado').length;
+            const ok = db.inventario.filter(i => i.stock > 5).length;
+
+            // Render Gerente
+            document.getElementById('gerente-stats').innerHTML = `
+                <div class="stat-box" style="color:var(--danger)"><span>Faltas</span><span class="num">${pend}</span></div>
+                <div class="stat-box" style="color:var(--warning)"><span>Pedidos</span><span class="num">${pros}</span></div>
+                <div class="stat-box" style="color:var(--success)"><span>OK</span><span class="num">${ok}</span></div>
+            `;
+            document.getElementById('gerente-resumen').innerHTML = db.faltas.length === 0 ? '<p style="color:var(--text-muted); text-align:center; padding:20px;">Todo en orden.</p>' :
+                db.faltas.slice(0,3).map(f => `<div class="card"><h4>${f.nombre}</h4><p style="font-size:0.9rem; color:var(--text-muted)">Solicitado: ${f.cantidadSolicitada} un.</p><div style="margin-top:6px;">${f.estado==='Pendiente'?'<span class="badge badge-orange">Pendiente</span>':'<span class="badge badge-blue">En camino</span>'}</div></div>`).join('');
+
+            document.getElementById('gerente-lista-inventario').innerHTML = db.inventario.length === 0 ? '<p style="color:var(--text-muted); text-align:center;">Sin productos.</p>' :
+                db.inventario.map(i => `<div class="card"><h4>${i.nombre}</h4><div style="font-size:1.2rem; font-weight:bold; margin:4px 0;">${i.stock} ${i.unidad}</div><button class="btn-danger" style="width:100%; margin-top:8px;" onclick="abrirModal(${i.id})"><i class="fa-solid fa-plus"></i> PEDIR FALTA</button></div>`).join('');
+
+            document.getElementById('gerente-lista-pedidos').innerHTML = db.faltas.length === 0 ? '<p style="color:var(--text-muted); text-align:center;">No hay pedidos.</p>' :
+                db.faltas.map(f => `<div class="card"><h4>${f.nombre}</h4><p>Cantidad: ${f.cantidadSolicitada} un.</p><div style="margin:6px 0;">${f.estado==='Pedido realizado'?'<span class="badge badge-blue">Pedido Realizado</span>':'<span class="badge badge-orange">Pendiente</span>'}</div>${f.estado==='Pedido realizado'?`<button class="btn-success" style="width:100%; margin-top:8px;" onclick="marcarRecibido(${f.id})">MARCAR RECIBIDO</button>`:''}</div>`).join('');
+
+            // Render Jefe
+            if(document.getElementById('jefe-view').classList.contains('hidden') === false) {
+                renderJefe();
+            }
+        }
+
+        let selId = null;
+        function abrirModal(id) {
+            selId = id;
+            const item = db.inventario.find(i => i.id === id);
+            document.getElementById('m-titulo').innerText = `Pedir ${item.nombre}`;
+            document.getElementById('m-stock').innerText = item.stock + ' ' + item.unidad;
+            document.getElementById('modal-falta').style.display = 'flex';
+        }
+
+        function enviarPedido() {
+            const item = db.inventario.find(i => i.id === selId);
+            const cant = parseInt(document.getElementById('m-cant').value) || 20;
+            const com = document.getElementById('m-comentario').value || 'Sin comentarios';
+            db.faltas.unshift({ id: Date.now(), productoId: item.id, nombre: item.nombre, stockActual: item.stock, cantidadSolicitada: cant, comentario: com, estado: 'Pendiente', fecha: new Date().toLocaleDateString() });
+            document.getElementById('modal-falta').style.display = 'none';
+            guardarCloud();
+        }
+
+        function marcarRecibido(id) {
+            const f = db.faltas.find(x => x.id === id);
+            f.estado = 'Recibido';
+            const prod = db.inventario.find(p => p.id === f.productoId);
+            if(prod) prod.stock += parseInt(f.cantidadSolicitada);
+            guardarCloud();
+        }
+
+        // --- JEFE ---
+        function switchJTab(tab) {
+            document.querySelectorAll('.j-section').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.sidebar .menu-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('j-sec-' + tab).classList.remove('hidden');
+            event.currentTarget.classList.add('active');
+            renderJefe();
+        }
+
+        function renderJefe() {
+            const pend = db.faltas.filter(f => f.estado === 'Pendiente').length;
+            const pros = db.faltas.filter(f => f.estado === 'Pedido realizado').length;
+            const rec = db.faltas.filter(f => f.estado === 'Recibido').length;
+
+            document.getElementById('jefe-stats').innerHTML = `
+                <div class="dash-card"><div><h3>Faltas Pendientes</h3><div class="value" style="color:var(--danger)">${pend}</div></div><i class="fa-solid fa-triangle-exclamation" style="font-size:2rem; color:var(--danger)"></i></div>
+                <div class="dash-card"><div><h3>Pedidos en Curso</h3><div class="value" style="color:var(--info)">${pros}</div></div><i class="fa-solid fa-truck-fast" style="font-size:2rem; color:var(--info)"></i></div>
+                <div class="dash-card"><div><h3>Recibidos</h3><div class="value" style="color:var(--success)">${rec}</div></div><i class="fa-solid fa-circle-check" style="font-size:2rem; color:var(--success)"></i></div>
+            `;
+
+            const avisos = document.getElementById('jefe-avisos');
+            const pendList = db.faltas.filter(f => f.estado === 'Pendiente');
+            avisos.innerHTML = pendList.length === 0 ? '<p style="color:var(--text-muted);">No hay solicitudes pendientes.</p>' :
+                pendList.map(f => `<div style="display:flex; justify-content:space-between; align-items:center; padding:14px; border:1px solid var(--border); border-radius:8px; margin-bottom:10px; background:#fff;"><div><h4>${f.nombre} (${f.cantidadSolicitada} un.)</h4><p style="color:var(--text-muted); font-size:0.9rem;">Nota: "${f.comentario}"</p></div><button class="btn-primary" onclick="marcarPedidoRealizado(${f.id})" style="width:auto;">Marcar Pedido Realizado</button></div>`).join('');
+
+            document.getElementById('jefe-tabla-inv').innerHTML = db.inventario.length === 0 ? '<p style="color:var(--text-muted); text-align:center;">Sin productos.</p>' :
+                `<table><thead><tr><th>Categoría</th><th>Producto</th><th>Stock</th><th>Estado</th></tr></thead><tbody>` +
+                db.inventario.map(i => `<tr><td><strong>${i.categoria}</strong></td><td>${i.nombre}</td><td>${i.stock} ${i.unidad}</td><td><span class="badge ${i.stock<=5?'badge-orange':'badge-green'}">${i.stock<=5?'Bajo':'Correcto'}</span></td></tr>`).join('') + `</tbody></table>`;
+
+            document.getElementById('jefe-tabla-faltas').innerHTML = pendList.length === 0 ? '<p style="color:var(--text-muted);">Sin solicitudes.</p>' :
+                `<table><thead><tr><th>Fecha</th><th>Producto</th><th>Solicitado</th><th>Comentario</th><th>Acción</th></tr></thead><tbody>` +
+                pendList.map(f => `<tr><td>${f.fecha}</td><td><strong>${f.nombre}</strong></td><td>${f.cantidadSolicitada} un.</td><td>${f.comentario}</td><td><button class="btn-primary" onclick="marcarPedidoRealizado(${f.id})" style="padding:6px 12px; font-size:0.85rem; width:auto;">Pedido Realizado</button></td></tr>`).join('') + `</tbody></table>`;
+        }
+
+        function marcarPedidoRealizado(id) {
+            const f = db.faltas.find(x => x.id === id);
+            f.estado = 'Pedido realizado';
+            guardarCloud();
+        }
+
+        function abrirModalNuevo() { document.getElementById('modal-nuevo').style.display = 'flex'; }
+        function guardarNuevoProducto() {
+            const cat = document.getElementById('nuevo-cat').value || 'GENERAL';
+            const nom = document.getElementById('nuevo-nom').value;
+            const stk = parseInt(document.getElementById('nuevo-stock').value) || 0;
+            const und = document.getElementById('nuevo-unidad').value || 'unidades';
+            if(!nom) { alert("Escribe un nombre."); return; }
+            db.inventario.push({ id: Date.now(), categoria: cat.toUpperCase(), nombre: nom, stock: stk, unidad: und });
+            document.getElementById('modal-nuevo').style.display = 'none';
+            guardarCloud();
+        }
+
+        // Inicializar
+        detectarDispositivo();
+    </script>
+</body>
+</html>
