@@ -1,9 +1,0 @@
-[
-  { "id": 1, "nombre": "Langostinos (kg)", "categoria": "Congelados", "estado": "OK", "veces": 0 },
-  { "id": 2, "nombre": "Croquetas Caseras", "categoria": "Congelados", "estado": "OK", "veces": 0 },
-  { "id": 3, "nombre": "Ternera Fresca (kg)", "categoria": "Frescos", "estado": "OK", "veces": 0 },
-  { "id": 4, "nombre": "Verdura Variada", "categoria": "Frescos", "estado": "OK", "veces": 0 },
-  { "id": 5, "nombre": "Arroz Redondo (kg)", "categoria": "Secos", "estado": "OK", "veces": 0 },
-  { "id": 6, "nombre": "Aceite de Oliva (L)", "categoria": "Secos", "estado": "OK", "veces": 0 },
-  { "id": 7, "nombre": "Cajas de Cartón", "categoria": "Menaje", "estado": "OK", "veces": 0 }
-]
