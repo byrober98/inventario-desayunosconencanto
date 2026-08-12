@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catering Pro - Oficina</title>
+    <style>
+        :root { --primary: #1e3a8a; --success: #16a34a; --danger: #dc2626; --warning: #d97706; --bg: #f1f5f9; --card: #ffffff; --text: #1e293b; --border: #e2e8f0; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        header { background: var(--card); padding: 20px 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; border-left: 6px solid var(--primary); }
+        h1 { margin: 0; font-size: 1.3rem; }
+        #toast { position: fixed; top: 20px; right: 20px; background: #0f172a; color: white; padding: 14px 20px; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2); transform: translateX(120%); transition: transform 0.3s ease; z-index: 1000; font-size: 0.9rem; border-left: 4px solid var(--primary); }
+        #toast.show { transform: translateX(0); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border-left: 4px solid var(--primary); }
+        .card { background: var(--card); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        .alerta-box { background: #fef2f2; border: 1px solid #fecaca; padding: 15px; border-radius: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .form-grid { display: grid; grid-template-columns: 2fr 1fr auto; gap: 10px; align-items: end; }
+        .form-group { display: flex; flex-direction: column; }
+        input, select { padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; }
+        button { cursor: pointer; padding: 10px 16px; border: none; border-radius: 6px; font-weight: 600; font-size: 0.9rem; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-tramitar { background: #2563eb; color: white; }
+        .btn-comprar { background: var(--success); color: white; }
+        table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 0.9rem; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: #f8fafc; }
+        .nav-home { display: inline-block; margin-bottom: 15px; color: var(--primary); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<div id="toast">🔔 <span id="toast-msg">Notificación</span></div>
+
+<div class="container">
+    <a href="index.html" class="nav-home">← Volver al inicio</a>
+    <header>
+        <h1>🏢 Panel de Dirección & Compras</h1>
+        <span style="color: var(--success); font-weight: bold;">● En Vivo</span>
+    </header>
+
+    <div class="stats-grid">
+        <div class="stat-card"><h3>Total Catálogo</h3><p id="stat-total">0</p></div>
+        <div class="stat-card" style="border-left-color: var(--danger);"><h3>Faltas Activas</h3><p id="stat-faltas" style="color: var(--danger);">0</p></div>
+        <div class="stat-card" style="border-left-color: var(--warning);"><h3>Más Solicitado</h3><p id="stat-top" style="font-size: 1.1rem; padding-top: 4px; color: var(--warning);">Ninguno</p></div>
+    </div>
+
+    <div class="card">
+        <h2>🚨 Gestión de Alertas y Compras Urgentes</h2>
+        <div id="contenedor-alertas"><p style="color: var(--success); font-weight: 600; margin:0;">✔ Todo en orden. No hay faltas reportadas.</p></div>
+    </div>
+
+    <div class="card">
+        <h2>➕ Dar de Alta Nuevo Producto</h2>
+        <div class="form-grid">
+            <div class="form-group"><label>Nombre</label><input type="text" id="nombreProd" placeholder="Ej. Solomillo (kg)"></div>
+            <div class="form-group"><label>Categoría</label><select id="catProd"><option>Congelados</option><option>Frescos</option><option>Secos</option><option>Menaje</option></select></div>
+            <button class="btn-primary" onclick="agregarProducto()">Añadir</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📋 Inventario Global y Analítica</h2>
+        <table>
+            <thead><tr><th>Producto</th><th>Categoría</th><th>Estado</th><th>Veces Solicitado</th></tr></thead>
+            <tbody id="tabla-general"></tbody>
+        </table>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+    function agregarProducto() {
+        let nombre = document.getElementById('nombreProd').value.trim();
+        let cat = document.getElementById('catProd').value;
+        if(!nombre) { alert("Escribe un nombre."); return; }
+
+        let db = obtenerInventario();
+        let id = db.length > 0 ? Math.max(...db.map(i => i.id)) + 1 : 1;
+        db.push({ id, nombre, categoria: cat, estado: "OK", veces: 0 });
+
+        guardarInventario(db, `Oficina añadió nuevo producto: "${nombre}"`);
+        document.getElementById('nombreProd').value = "";
+    }
+
+    function cambiarEstado(id, nuevoEstado) {
+        let db = obtenerInventario();
+        let item = db.find(i => i.id === id);
+        if(item) {
+            item.estado = nuevoEstado;
+            let msg = nuevoEstado === 'Pedido solicitado' ? `Oficina tramitó pedido de "${item.nombre}"` : `Oficina marcó como COMPRADO: "${item.nombre}"`;
+            guardarInventario(db, msg);
+        }
+    }
+
+    function render() {
+        let db = obtenerInventario();
+        document.getElementById('stat-total').innerText = db.length;
+        let faltas = db.filter(i => i.estado !== "OK");
+        document.getElementById('stat-faltas').innerText = faltas.length;
+
+        let top = db.reduce((p, c) => (c.veces > p.veces) ? c : p, { nombre: "Ninguno", veces: 0 });
+        document.getElementById('stat-top').innerText = top.veces > 0 ? `${top.nombre} (${top.veces}x)` : "Sin datos";
+
+        let divAlertas = document.getElementById('contenedor-alertas');
+        divAlertas.innerHTML = "";
+        if(faltas.length > 0) {
+            faltas.forEach(i => {
+                let btn = i.estado === "Falta" ? `<button class="btn-tramitar" onclick="cambiarEstado(${i.id}, 'Pedido solicitado')">Tramitar Pedido</button>` : (i.estado === "Pedido solicitado" ? `<button class="btn-comprar" onclick="cambiarEstado(${i.id}, 'Comprado')">Marcar Comprado</button>` : `<em style="color:#64748b;">En camino...</em>`);
+                divAlertas.innerHTML += `<div class="alerta-box"><div><strong>${i.nombre}</strong> (${i.categoria})<br><span style="color:var(--danger); font-weight:bold;">Estado: ${i.estado}</span></div><div>${btn}</div></div>`;
+            });
+        } else {
+            divAlertas.innerHTML = `<p style="color: var(--success); font-weight: 600; margin:0;">✔ Todo en orden. No hay faltas.</p>`;
+        }
+
+        let tabla = document.getElementById('tabla-general');
+        tabla.innerHTML = "";
+        db.forEach(i => {
+            tabla.innerHTML += `<tr><td><strong>${i.nombre}</strong></td><td>${i.categoria}</td><td>${i.estado}</td><td><strong>${i.veces || 0} veces</strong></td></tr>`;
+        });
+    }
+
+    canalRT.onmessage = (e) => {
+        render();
+        if(e.data.mensaje) mostrarToast(e.data.mensaje);
+    };
+
+    render();
+</script>
+</body>
+</html>
