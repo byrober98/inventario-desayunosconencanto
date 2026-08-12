@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catering Pro - Almacén</title>
+    <style>
+        :root { --primary: #0284c7; --success: #16a34a; --danger: #dc2626; --warning: #d97706; --bg: #f1f5f9; --card: #ffffff; --text: #1e293b; --border: #e2e8f0; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        header { background: var(--card); padding: 20px 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; border-left: 6px solid var(--primary); }
+        h1 { margin: 0; font-size: 1.3rem; }
+        #toast { position: fixed; top: 20px; right: 20px; background: #0f172a; color: white; padding: 14px 20px; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2); transform: translateX(120%); transition: transform 0.3s ease; z-index: 1000; font-size: 0.9rem; border-left: 4px solid var(--primary); }
+        #toast.show { transform: translateX(0); }
+        .delivery-banner { background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .category-section { background: var(--card); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        .category-title { font-size: 1.1rem; color: #334155; margin-top: 0; border-bottom: 2px solid var(--border); padding-bottom: 10px; }
+        .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 15px; }
+        .item-card { background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 15px; display: flex; flex-direction: column; justify-content: space-between; }
+        button { cursor: pointer; padding: 8px 14px; border: none; border-radius: 6px; font-weight: 600; font-size: 0.85rem; width: 100%; }
+        .btn-falta { background: #fee2e2; color: var(--danger); }
+        .btn-recibido { background: #dcfce7; color: var(--success); }
+        .status-pill { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .pill-ok { background: #dcfce7; color: var(--success); }
+        .pill-falta { background: #fee2e2; color: var(--danger); }
+        .pill-proceso { background: #fef3c7; color: var(--warning); }
+        .pill-comprado { background: #e0f2fe; color: var(--primary); }
+        .nav-home { display: inline-block; margin-bottom: 15px; color: #0284c7; text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<div id="toast">🔔 <span id="toast-msg">Notificación</span></div>
+
+<div class="container">
+    <a href="index.html" class="nav-home">← Volver al inicio</a>
+    <header>
+        <h1>📦 Control de Almacén</h1>
+        <span style="color: var(--success); font-weight: bold;">● En Vivo</span>
+    </header>
+
+    <div class="delivery-banner" id="banner-recepcion" style="display: none;">
+        <h3>🚚 Mercancía en Tránsito</h3>
+        <div id="lista-recepcion" style="display: flex; flex-direction: column; gap: 10px;"></div>
+    </div>
+
+    <div id="contenedor-categorias"></div>
+</div>
+
+<script src="app.js"></script>
+<script>
+    function cambiarEstado(id, nuevoEstado) {
+        let db = obtenerInventario();
+        let item = db.find(i => i.id === id);
+        if(item) {
+            item.estado = nuevoEstado;
+            let msg = "";
+            if(nuevoEstado === "Falta") {
+                item.veces = (item.veces || 0) + 1;
+                msg = `⚠️ Almacén reportó falta en: "${item.nombre}"`;
+            } else if(nuevoEstado === "OK") {
+                msg = `✔ Almacén confirmó la llegada de: "${item.nombre}"`;
+            }
+            guardarInventario(db, msg);
+        }
+    }
+
+    function render() {
+        let db = obtenerInventario();
+        let contenedor = document.getElementById('contenedor-categorias');
+        let banner = document.getElementById('banner-recepcion');
+        let listaRec = document.getElementById('lista-recepcion');
+        contenedor.innerHTML = "";
+
+        let pendientes = db.filter(i => i.estado === "Comprado" || i.estado === "Pedido solicitado");
+        if(pendientes.length > 0) {
+            banner.style.display = "block";
+            let htmlRec = "";
+            pendientes.forEach(item => {
+                let pill = item.estado === "Comprado" ? `<span class="status-pill pill-comprado">🚀 En Camino</span>` : `<span class="status-pill pill-proceso">⏳ En Oficina</span>`;
+                let accion = item.estado === "Comprado" ? `<button class="btn-recibido" onclick="cambiarEstado(${item.id}, 'OK')">📦 Confirmar Recepción</button>` : `<em style="font-size: 0.85rem; color: #64748b;">Esperando al jefe...</em>`;
+                htmlRec += `<div style="background: white; padding: 12px; border-radius: 8px; border: 1px solid #fef3c7; display: flex; justify-content: space-between; align-items: center;"><div><strong>${item.nombre}</strong><br>${pill}</div><div>${accion}</div></div>`;
+            });
+            listaRec.innerHTML = htmlRec;
+        } else {
+            banner.style.display = "none";
+        }
+
+        let categorias = ["Congelados", "Frescos", "Secos", "Menaje"];
+        categorias.forEach(cat => {
+            let itemsCat = db.filter(i => i.categoria === cat);
+            if(itemsCat.length === 0) return;
+
+            let section = document.createElement('div');
+            section.className = "category-section";
+            let htmlItems = "";
+            itemsCat.forEach(item => {
+                let pill = item.estado === "OK" ? `<span class="status-pill pill-ok">Correcto</span>` : `<span class="status-pill pill-falta">Falta Stock</span>`;
+                htmlItems += `
+                    <div class="item-card">
+                        <div>
+                            <h4 style="margin:0 0 5px 0;">${item.nombre}</h4>
+                            <p style="margin:0 0 10px 0; font-size:0.8rem;">Estado: ${pill}</p>
+                        </div>
+                        <div>${item.estado === 'OK' ? `<button class="btn-falta" onclick="cambiarEstado(${item.id}, 'Falta')">Marcar Falta</button>` : `<em style="font-size:0.8rem; color:#64748b;">Aviso enviado</em>`}</div>
+                    </div>`;
+            });
+            section.innerHTML = `<h2 class="category-title">${cat}</h2><div class="items-grid">${htmlItems}</div>`;
+            contenedor.appendChild(section);
+        });
+    }
+
+    canalRT.onmessage = (e) => {
+        render();
+        if(e.data.mensaje) mostrarToast(e.data.mensaje);
+    };
+
+    render();
+</script>
+</body>
+</html>
