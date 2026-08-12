@@ -1,10 +1,9 @@
-const STORAGE_KEY = 'catering_github_cloud_db';
-const canalRT = new BroadcastChannel('catering_github_sync');
+const STORAGE_KEY = 'catering_pro_realtime_db';
+const canalRT = new BroadcastChannel('catering_live_sync_channel');
 
 function obtenerInventario() {
     let data = localStorage.getItem(STORAGE_KEY);
     if (!data) {
-        // Carga inicial sincronizada desde el archivo db.json simulado o estructura base
         const inicial = [
             { id: 1, nombre: "Langostinos (kg)", categoria: "Congelados", estado: "OK", veces: 0 },
             { id: 2, nombre: "Croquetas Caseras", categoria: "Congelados", estado: "OK", veces: 0 },
