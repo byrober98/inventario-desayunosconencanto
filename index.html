@@ -92,7 +92,10 @@
                 <h2><i class="fa-solid fa-mobile-screen-button" style="color:var(--primary)"></i> Gerente</h2>
                 <p style="color:var(--text-muted); font-size:0.85rem;">Control de Obrador</p>
             </div>
-            <button class="btn-outline" onclick="location.reload()" style="padding: 6px 10px; font-size: 0.75rem; color:var(--danger); border-color:var(--danger);"><i class="fa-solid fa-right-from-bracket"></i></button>
+            <div style="display:flex; gap:6px;">
+                <button class="btn-outline" onclick="sincronizarCloud()" style="padding: 6px 10px; font-size: 0.75rem;"><i class="fa-solid fa-sync"></i></button>
+                <button class="btn-outline" onclick="location.reload()" style="padding: 6px 10px; font-size: 0.75rem; color:var(--danger); border-color:var(--danger);"><i class="fa-solid fa-right-from-bracket"></i></button>
+            </div>
         </div>
 
         <div class="gerente-content" id="g-tab-inicio">
@@ -133,7 +136,10 @@
 
         <main class="main">
             <div id="j-sec-dashboard" class="j-section">
-                <div style="margin-bottom: 24px;"><h1>Panel de Control</h1><p style="color:var(--text-muted);">Supervisa el obrador.</p></div>
+                <div style="margin-bottom: 24px; display:flex; justify-content:space-between; align-items:center;">
+                    <div><h1>Panel de Control</h1><p style="color:var(--text-muted);">Supervisa el obrador.</p></div>
+                    <button class="btn-primary" onclick="sincronizarCloud()"><i class="fa-solid fa-sync"></i> Sincronizar</button>
+                </div>
                 <div class="dash-grid-pc" id="jefe-stats"></div>
                 <div class="section-box">
                     <h3><i class="fa-solid fa-bell" style="color:var(--danger)"></i> Avisos Recientes del Gerente</h3>
@@ -189,11 +195,23 @@
         </div>
     </div>
 
-    <!-- Conexión con el archivo config.js externo -->
-    <script src="config.js"></script>
     <script>
-        let db = obtenerBD();
+        // Sistema inteligente de almacenamiento en JSONbin compartido universal
+        const BIN_ID = localStorage.getItem('obrador_bin_id') || '6628b05facd3cb34a835b12a';
+        const API_KEY = '$2a$10$7h1Jk3L6...';
+
+        const PASS_GERENTE = 'Orten292';
+        const PASS_JEFE = 'Silvia192';
+
         let tipoDispositivo = '';
+        let db = { 
+            inventario: [
+                { id: 1, categoria: 'GENERAL', nombre: 'Harina', stock: 50, unidad: 'kg' },
+                { id: 2, categoria: 'GENERAL', nombre: 'Azúcar', stock: 30, unidad: 'kg' }
+            ], 
+            faltas: [], 
+            historial: [] 
+        };
 
         function showToast(msg) {
             const t = document.getElementById('toast');
@@ -201,6 +219,48 @@
             t.style.display = 'block';
             setTimeout(() => t.style.display = 'none', 3000);
         }
+
+        async function sincronizarCloud() {
+            try {
+                const res = await fetch(`https://api.jsonbin.io/v3/b/6628b05facd3cb34a835b12a/latest`, { 
+                    headers: { 'X-Master-Key': '$2a$10$7h1Jk3L6...' } 
+                });
+                if(res.ok) {
+                    const data = await res.json();
+                    if(data && data.record) {
+                        db = data.record;
+                        localStorage.setItem('obrador_local_cache', JSON.stringify(db));
+                        renderActual();
+                        showToast("☁️ Datos sincronizados");
+                    }
+                }
+            } catch(e) {
+                const local = localStorage.getItem('obrador_local_cache');
+                if(local) db = JSON.parse(local);
+                renderActual();
+            }
+        }
+
+        async function guardarCloud() {
+            renderActual();
+            localStorage.setItem('obrador_local_cache', JSON.stringify(db));
+            try {
+                await fetch(`https://api.jsonbin.io/v3/b/6628b05facd3cb34a835b12a`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'X-Master-Key': '$2a$10$7h1Jk3L6...' 
+                    },
+                    body: JSON.stringify(db)
+                });
+                showToast("💾 Guardado en la nube");
+            } catch(e) { 
+                showToast("⚠️ Guardado en caché local"); 
+            }
+        }
+
+        // Auto-refresco de red cada 4 segundos para ver los cambios instantáneamente
+        setInterval(sincronizarCloud, 4000);
 
         function detectarDispositivo() {
             const esMovil = /Mobi|Android|iPhone/i.test(navigator.userAgent);
@@ -215,16 +275,16 @@
 
         function verificarPass() {
             const pass = document.getElementById('input-pass').value;
-            if(tipoDispositivo === 'gerente' && pass === OBRADOR_CONFIG.PASS_GERENTE) {
+            if(tipoDispositivo === 'gerente' && pass === PASS_GERENTE) {
                 document.getElementById('auth-screen').style.display = 'none';
                 document.getElementById('gerente-view').classList.remove('hidden');
+                sincronizarCloud();
                 goToGTab('inicio');
-                showToast("🔓 Sesión Iniciada");
-            } else if(tipoDispositivo === 'jefe' && pass === OBRADOR_CONFIG.PASS_JEFE) {
+            } else if(tipoDispositivo === 'jefe' && pass === PASS_JEFE) {
                 document.getElementById('auth-screen').style.display = 'none';
                 document.getElementById('jefe-view').classList.remove('hidden');
+                sincronizarCloud();
                 switchJTab('dashboard');
-                showToast("🔓 Sesión Iniciada");
             } else {
                 alert("Contraseña incorrecta.");
             }
@@ -232,7 +292,6 @@
 
         // --- GERENTE ---
         function goToGTab(tab) {
-            db = obtenerBD();
             document.querySelectorAll('.gerente-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             document.getElementById('g-tab-' + tab).classList.remove('hidden');
@@ -241,7 +300,6 @@
         }
 
         function renderActual() {
-            db = obtenerBD();
             const pend = db.faltas ? db.faltas.filter(f => f.estado === 'Pendiente').length : 0;
             const pros = db.faltas ? db.faltas.filter(f => f.estado === 'Pedido realizado').length : 0;
             const ok = db.inventario ? db.inventario.filter(i => i.stock > 5).length : 0;
@@ -276,32 +334,25 @@
         }
 
         function enviarPedido() {
-            db = obtenerBD();
             const item = db.inventario.find(i => i.id === selId);
             const cant = parseInt(document.getElementById('m-cant').value) || 20;
             const com = document.getElementById('m-comentario').value || 'Sin comentarios';
             if(!db.faltas) db.faltas = [];
             db.faltas.unshift({ id: Date.now(), productoId: item.id, nombre: item.nombre, stockActual: item.stock, cantidadSolicitada: cant, comentario: com, estado: 'Pendiente', fecha: new Date().toLocaleDateString() });
-            guardarBD(db);
             document.getElementById('modal-falta').style.display = 'none';
-            showToast("Pedido enviado.");
-            renderActual();
+            guardarCloud();
         }
 
         function marcarRecibido(id) {
-            db = obtenerBD();
             const f = db.faltas.find(x => x.id === id);
             f.estado = 'Recibido';
             const prod = db.inventario.find(p => p.id === f.productoId);
             if(prod) prod.stock += parseInt(f.cantidadSolicitada);
-            guardarBD(db);
-            showToast("Recepción confirmada.");
-            renderActual();
+            guardarCloud();
         }
 
         // --- JEFE ---
         function switchJTab(tab) {
-            db = obtenerBD();
             document.querySelectorAll('.j-section').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.sidebar .menu-item').forEach(el => el.classList.remove('active'));
             document.getElementById('j-sec-' + tab).classList.remove('hidden');
@@ -310,7 +361,6 @@
         }
 
         function renderJefe() {
-            db = obtenerBD();
             const pend = db.faltas ? db.faltas.filter(f => f.estado === 'Pendiente').length : 0;
             const pros = db.faltas ? db.faltas.filter(f => f.estado === 'Pedido realizado').length : 0;
             const rec = db.faltas ? db.faltas.filter(f => f.estado === 'Recibido').length : 0;
@@ -336,19 +386,15 @@
         }
 
         function marcarPedidoRealizado(id) {
-            db = obtenerBD();
             const f = db.faltas.find(x => x.id === id);
             if(f) {
                 f.estado = 'Pedido realizado';
-                guardarBD(db);
-                showToast("Pedido actualizado.");
-                renderJefe();
+                guardarCloud();
             }
         }
 
         function abrirModalNuevo() { document.getElementById('modal-nuevo').style.display = 'flex'; }
         function guardarNuevoProducto() {
-            db = obtenerBD();
             const cat = document.getElementById('nuevo-cat').value || 'GENERAL';
             const nom = document.getElementById('nuevo-nom').value;
             const stk = parseInt(document.getElementById('nuevo-stock').value) || 0;
@@ -356,10 +402,8 @@
             if(!nom) { alert("Escribe un nombre."); return; }
             if(!db.inventario) db.inventario = [];
             db.inventario.push({ id: Date.now(), categoria: cat.toUpperCase(), nombre: nom, stock: stk, unidad: und });
-            guardarBD(db);
             document.getElementById('modal-nuevo').style.display = 'none';
-            showToast("Producto añadido.");
-            renderJefe();
+            guardarCloud();
         }
 
         detectarDispositivo();
